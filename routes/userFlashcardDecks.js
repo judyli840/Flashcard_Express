@@ -1,25 +1,50 @@
 var express = require('express');
-const { Client } = require('pg')
 var router = express.Router();
+const PgHelper = require('../helper/pg_helper');
 
-const client = new Client({
-  user: 'judy',
-  host: 'localhost',
-  database: 'Flashcard',
-  port: 5432,
-})
-router.get('/getFlashcardDecks/:userId', async function(req, res, next) {
-    // (async () => {
-      console.log("connecting");
-      await client.connect()
-      console.log("Connected");
-      const response = await client.query('SELECT * FROM flashCardDeck')
-      console.log(response.rows[0].message) // Hello world!
-      await client.end()
+router.get('/decks/:userId', async function(req, res, next) {
+  const pgHelper = new PgHelper();
+  await pgHelper.client.connect();
 
-      res.json(response);
-      // res.send('Something here')
-    // })()
+  response = await getDecksForUserWithJoinQuery(req.params.userId, pgHelper);
+
+  await pgHelper.client.end();
+  res.json(response);
 });
+
+async function getDecksForUserWithMultipleQueries(userId, pgHelper) {
+  const response = await pgHelper.client.query(`SELECT deck_id FROM userflashcarddeck WHERE user_id = ${userId}`);
+  let deckIds = [];
+  response.rows.forEach((row) => {
+    deckIds.push(row.deck_id)
+  })
+  const deckResponse = await pgHelper.client.query(`SELECT deck_id, deckname FROM flashcarddeck WHERE deck_id = ANY($1::int[])`, [deckIds]);
+
+  return deckResponse;
+}
+
+async function getDecksForUserWithMultipleTableQuery(userId, pgHelper) {
+  const queryStr = `
+    SELECT FCD.deck_id, FCD.deckname
+    FROM flashcarddeck as FCD, userflashcarddeck UFCD
+    WHERE UFCD.user_id = ${userId} AND UFCD.deck_id = FCD.deck_id
+  `;
+  const response = await pgHelper.client.query(queryStr);
+
+  return response;
+}
+
+async function getDecksForUserWithJoinQuery(userId, pgHelper) {
+  const queryStr = `
+    SELECT flashcarddeck.deck_id, deckname
+    FROM flashcarddeck INNER JOIN userflashcarddeck on (flashcarddeck.deck_id = userflashcarddeck.deck_id)
+    WHERE user_id=${userId}
+  `;
+  const response = await pgHelper.client.query(queryStr);
+
+  return response;
+}
+
+// const response = await pgHelper.client.query('SELECT * FROM flashcarddeck JOIN person ON "User"."id"="Booking"."renter"'');
 
 module.exports = router;
