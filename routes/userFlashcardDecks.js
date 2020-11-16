@@ -9,7 +9,7 @@ router.get('/decks/:userId', async function(req, res, next) {
   response = await getDecksForUserWithJoinQuery(req.params.userId, pgHelper);
 
   await pgHelper.client.end();
-  res.json(response);
+  res.json(response.rows);
 });
 
 async function getDecksForUserWithMultipleQueries(userId, pgHelper) {
@@ -24,17 +24,20 @@ async function getDecksForUserWithMultipleQueries(userId, pgHelper) {
 }
 
 async function getDecksForUserWithMultipleTableQuery(userId, pgHelper) {
+  //inserts instructions into queryStr
   const queryStr = `
     SELECT FCD.deck_id, FCD.deckname
     FROM flashcarddeck as FCD, userflashcarddeck UFCD
     WHERE UFCD.user_id = ${userId} AND UFCD.deck_id = FCD.deck_id
   `;
-  const response = await pgHelper.client.query(queryStr);
+  const response = await pgHelper.client.query(queryStr); //queries database
 
   return response;
 }
 
 async function getDecksForUserWithJoinQuery(userId, pgHelper) {
+  //inner join - based on deck_id, join flashcarddeck and userflashcarddeck (i.e. table consists deckName, user_id, deck_id)
+  //queries resulting table with user_id
   const queryStr = `
     SELECT flashcarddeck.deck_id, deckname
     FROM flashcarddeck INNER JOIN userflashcarddeck on (flashcarddeck.deck_id = userflashcarddeck.deck_id)
