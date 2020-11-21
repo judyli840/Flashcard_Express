@@ -41,8 +41,7 @@ async function getDecksForUserWithJoinQuery(userId, pgHelper) {
   const queryStr = `
     SELECT flashcarddeck.deck_id, deckname
     FROM flashcarddeck INNER JOIN userflashcarddeck on (flashcarddeck.deck_id = userflashcarddeck.deck_id)
-    WHERE user_id=${userId}
-  `;
+    WHERE user_id=${userId}`;
   const response = await pgHelper.client.query(queryStr);
 
   return response;
